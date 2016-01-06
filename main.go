@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/csv"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/fatih/color"
+	"github.com/solarsailer/makeinvoice/parser"
+	"github.com/solarsailer/makeinvoice/table"
 )
 
 // -------------------------------------------------------
@@ -79,7 +80,7 @@ func exit(message string) {
 // -------------------------------------------------------
 
 func execute(c *cli.Context, csvFilename string) {
-	data, err := parseCSV(csvFilename)
+	data, err := parser.ParseCSV(csvFilename)
 	if err != nil {
 		exit("Cannot open the provided CSV file.")
 	}
@@ -87,7 +88,7 @@ func execute(c *cli.Context, csvFilename string) {
 	buffer := bytes.NewBuffer([]byte{})
 
 	template := parseTemplate(c)
-	template.Execute(buffer, Output{Table: format(data)})
+	template.Execute(buffer, Output{Table: table.Format(data)})
 
 	// Export to markdown or pdf (depends on the extension).
 	// Show on the stdout if no export.
@@ -179,91 +180,4 @@ func useDefaultTemplate() *template.Template {
 	return template.Must(
 		template.New("").Parse(DefaultTemplate),
 	)
-}
-
-// -------------------------------------------------------
-// CSV.
-// -------------------------------------------------------
-
-func parseCSV(filename string) ([][]string, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	records, err := csv.NewReader(f).ReadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	return records, nil
-}
-
-// -------------------------------------------------------
-// Table formatting.
-// -------------------------------------------------------
-
-// Format a two-dimensional array into a markdown table.
-//
-// Example:
-//
-//   [["head1", "head2"], ["val1", "val2"]]
-//   =>
-//   "
-//     head1|head2
-//     -|-
-//     val1|val2
-//   "
-func format(table [][]string) string {
-	result := ""
-
-	for i, row := range table {
-		result += formatRow(row)
-
-		if i == 0 {
-			result += formatHeader(len(row))
-		}
-	}
-
-	return strings.TrimSpace(result)
-}
-
-// Format the header line of a markdown table.
-// For each col, put a "-" and separate each col with a "|".
-//
-// Example:
-//
-//   ["a", "b"] => "-|-\n"
-func formatHeader(length int) string {
-	result := "\n"
-
-	for i := 0; i < length; i++ {
-		if i != 0 {
-			result += "|"
-		}
-
-		result += "-"
-	}
-
-	return result
-}
-
-// Format a row - separate each value by a "|".
-//
-// Example:
-//
-//   ["a", "b"] => "a|b\n"
-func formatRow(row []string) string {
-	result := "\n"
-
-	for i, col := range row {
-		if i != 0 {
-			result += "|"
-		}
-
-		result += col
-	}
-
-	return result
 }
