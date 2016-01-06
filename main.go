@@ -21,6 +21,12 @@ import (
 // DefaultTemplate is a bare template to use as fallback.
 const DefaultTemplate = `{{ .Table }}`
 
+const (
+	outputFlag   = "output"
+	styleFlag    = "style"
+	templateFlag = "template"
+)
+
 // -------------------------------------------------------
 // Types.
 // -------------------------------------------------------
@@ -37,7 +43,7 @@ type Output struct {
 func main() {
 	app := cli.NewApp()
 	app.Name = "makeinvoice"
-	app.Usage = "create invoice populated with data from a CSV file"
+	app.Usage = "create an invoice populated with data from a CSV file"
 	app.Version = "1.0.0"
 	app.Action = func(c *cli.Context) {
 		if !c.Args().Present() {
@@ -48,15 +54,15 @@ func main() {
 	}
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "output, o",
-			Usage: "export to markdown or PDF",
+			Name:  outputFlag + ", o",
+			Usage: "export to Markdown, HTML or PDF",
 		},
 		cli.StringFlag{
-			Name:  "css, s",
+			Name:  styleFlag + ", s",
 			Usage: "decorate the output (only for PDF)",
 		},
 		cli.StringFlag{
-			Name:  "template, t",
+			Name:  templateFlag + ", t",
 			Usage: "template file (in markdown)",
 		},
 	}
@@ -85,11 +91,11 @@ func execute(c *cli.Context, csvFilename string) {
 
 	// Export to markdown or pdf (depends on the extension).
 	// Show on the stdout if no export.
-	if c.GlobalIsSet("output") {
-		path := c.GlobalString("output")
+	if c.GlobalIsSet(outputFlag) {
+		path := c.GlobalString(outputFlag)
 
 		if strings.Contains(path, ".pdf") {
-			createPDF(buffer, path, c.GlobalString("css"))
+			createPDF(buffer, path, c.GlobalString(styleFlag))
 		} else {
 			createMarkdown(buffer, path)
 		}
@@ -151,12 +157,12 @@ func writeMarkdownFile(buffer *bytes.Buffer, file *os.File) {
 
 func parseTemplate(c *cli.Context) *template.Template {
 	// Get the template path form the global option `template`.
-	if !c.GlobalIsSet("template") {
+	if !c.GlobalIsSet(templateFlag) {
 		// If not available, use the default template.
 		return useDefaultTemplate()
 	}
 
-	content, err := ioutil.ReadFile(c.GlobalString("template"))
+	content, err := ioutil.ReadFile(c.GlobalString(templateFlag))
 	if err != nil {
 		exit("Cannot read the template.")
 	}
