@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -46,13 +47,18 @@ func main() {
 	app.Name = "makeinvoice"
 	app.Usage = "create an invoice populated with data from a CSV file"
 	app.Version = "1.0.0"
-	app.Action = func(c *cli.Context) {
-		if !c.Args().Present() {
-			exit("No arguments passed.")
-		}
 
-		execute(c, c.Args().First())
+	// Set main action.
+	app.Action = func(c *cli.Context) {
+
+		// Wrap the call and exit with error if needed.
+		if err := run(c); err != nil {
+			fmt.Fprintln(os.Stderr, color.RedString(err.Error()))
+			os.Exit(1)
+		}
 	}
+
+	// Set flags.
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  outputFlag + ", o",
@@ -67,27 +73,35 @@ func main() {
 			Usage: "template file (in markdown)",
 		},
 	}
+
 	app.Run(os.Args)
 }
 
-func exit(message string) {
-	fmt.Println(color.RedString(message))
-	os.Exit(1)
+func run(c *cli.Context) error {
+	if !c.Args().Present() {
+		return errors.New("no arguments passed")
+	}
+
+	return execute(c, c.Args().First())
 }
 
 // -------------------------------------------------------
 // Execute.
 // -------------------------------------------------------
 
-func execute(c *cli.Context, csvFilename string) {
+func execute(c *cli.Context, csvFilename string) error {
 	data, err := parser.ParseCSV(csvFilename)
 	if err != nil {
-		exit("Cannot open the provided CSV file.")
+		return err
 	}
 
-	buffer := bytes.NewBuffer([]byte{})
+	template, err := parseTemplate(c)
+	if err != nil {
+		return err
+	}
 
-	template := parseTemplate(c)
+	// Create a buffer and execute the template with it.
+	buffer := bytes.NewBuffer([]byte{})
 	template.Execute(buffer, Output{Table: table.Format(data)})
 
 	// Export to markdown or pdf (depends on the extension).
@@ -96,19 +110,21 @@ func execute(c *cli.Context, csvFilename string) {
 		path := c.GlobalString(outputFlag)
 
 		if strings.Contains(path, ".pdf") {
-			createPDF(buffer, path, c.GlobalString(styleFlag))
-		} else {
-			createMarkdown(buffer, path)
+			return createPDF(buffer, path, c.GlobalString(styleFlag))
 		}
-	} else {
-		fmt.Println(buffer)
+
+		return createMarkdown(buffer, path)
 	}
+
+	fmt.Println(buffer)
+
+	return nil
 }
 
-func createPDF(buffer *bytes.Buffer, path string, cssPath string) {
+func createPDF(buffer *bytes.Buffer, path string, cssPath string) error {
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "temp")
 	if err != nil {
-		exit("Cannot export to PDF.")
+		return errors.New("cannot export to PDF")
 	}
 	defer os.Remove(tmpFile.Name())
 
@@ -131,49 +147,55 @@ func createPDF(buffer *bytes.Buffer, path string, cssPath string) {
 	args = append(args, tmpFile.Name())
 
 	if err := exec.Command("markdown-pdf", args...).Run(); err != nil {
-		exit("Cannot generate the PDF.")
+		return errors.New("cannot generate the PDF")
 	}
+
+	return nil
 }
 
-func createMarkdown(buffer *bytes.Buffer, path string) {
+func createMarkdown(buffer *bytes.Buffer, path string) error {
 	file, err := os.Create(path)
 	if err != nil {
-		exit("Cannot create a file to " + path + ".")
+		return errors.New("cannot create a file to " + path)
 	}
 	defer file.Close()
 
 	writeMarkdownFile(buffer, file)
+
+	return nil
 }
 
-func writeMarkdownFile(buffer *bytes.Buffer, file *os.File) {
+func writeMarkdownFile(buffer *bytes.Buffer, file *os.File) error {
 	_, err := file.WriteString(buffer.String())
 	if err != nil {
-		exit("Cannot write to the output path.")
+		return errors.New("cannot write to the output path")
 	}
+
+	return nil
 }
 
 // -------------------------------------------------------
 // Template.
 // -------------------------------------------------------
 
-func parseTemplate(c *cli.Context) *template.Template {
+func parseTemplate(c *cli.Context) (*template.Template, error) {
 	// Get the template path form the global option `template`.
 	if !c.GlobalIsSet(templateFlag) {
 		// If not available, use the default template.
-		return useDefaultTemplate()
+		return useDefaultTemplate(), nil
 	}
 
 	content, err := ioutil.ReadFile(c.GlobalString(templateFlag))
 	if err != nil {
-		exit("Cannot read the template.")
+		return nil, errors.New("cannot read the template")
 	}
 
 	template, err := template.New("").Parse(string(content))
 	if err != nil {
-		exit("Invalid template file.")
+		return nil, errors.New("invalid template file")
 	}
 
-	return template
+	return template, nil
 }
 
 func useDefaultTemplate() *template.Template {

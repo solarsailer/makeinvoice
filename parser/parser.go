@@ -2,6 +2,7 @@ package parser
 
 import (
 	"encoding/csv"
+	"errors"
 	"os"
 )
 
@@ -13,13 +14,13 @@ import (
 func ParseCSV(filename string) ([][]string, error) {
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("cannot open `" + filename + "`: no such file")
 	}
 	defer f.Close()
 
 	records, err := csv.NewReader(f).ReadAll()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("invalid CSV file")
 	}
 
 	return records, nil
