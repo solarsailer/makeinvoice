@@ -13,7 +13,7 @@
 
 ## TODO
 
-- [ ] Handle CSS file.
+- [x] Handle CSS file.
 - [ ] Support XLS document.
 - [ ] Currently, we only import one CSV in one part of a document (`.Table`). Should be better to have multiple export points.
 - [ ] Better template system (`{{ .Table }}` is not pretty).

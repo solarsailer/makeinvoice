@@ -89,7 +89,7 @@ func execute(c *cli.Context, csvFilename string) {
 		path := c.GlobalString("output")
 
 		if strings.Contains(path, ".pdf") {
-			createPDF(buffer, path)
+			createPDF(buffer, path, c.GlobalString("css"))
 		} else {
 			createMarkdown(buffer, path)
 		}
@@ -98,7 +98,7 @@ func execute(c *cli.Context, csvFilename string) {
 	}
 }
 
-func createPDF(buffer *bytes.Buffer, path string) {
+func createPDF(buffer *bytes.Buffer, path string, cssPath string) {
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "temp")
 	if err != nil {
 		exit("Cannot export to PDF.")
@@ -108,10 +108,24 @@ func createPDF(buffer *bytes.Buffer, path string) {
 	// Write the markdown to the temp file.
 	writeMarkdownFile(buffer, tmpFile)
 
-	// And convert.
-	exec.Command(
-		"markdown-pdf", "-o", path, tmpFile.Name(),
-	).Run()
+	// Construct the arguments.
+	args := []string{}
+
+	// Parse html tags in the markdown file.
+	args = append(args, "-m", `{"html": true}`)
+
+	// Style if CSS file provided.
+	if cssPath != "" {
+		args = append(args, "-s", cssPath)
+	}
+
+	// Output to given path with the tmp file content.
+	args = append(args, "-o", path)
+	args = append(args, tmpFile.Name())
+
+	if err := exec.Command("markdown-pdf", args...).Run(); err != nil {
+		exit("Cannot generate the PDF.")
+	}
 }
 
 func createMarkdown(buffer *bytes.Buffer, path string) {
