@@ -49,15 +49,15 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "output, o",
-			Usage: "export to markdown or pdf",
+			Usage: "export to markdown or PDF",
 		},
 		cli.StringFlag{
 			Name:  "css, s",
-			Usage: "decorate the output with this stylesheet",
+			Usage: "decorate the output (only for PDF)",
 		},
 		cli.StringFlag{
 			Name:  "template, t",
-			Usage: "template file (markdown)",
+			Usage: "template file (in markdown)",
 		},
 	}
 	app.Run(os.Args)
