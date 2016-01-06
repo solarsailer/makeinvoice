@@ -1,0 +1,5 @@
+source,sales,amount
+test1,42,42€
+test2,84,$84
+test3,4200,£21
+test4,500000,¥840
