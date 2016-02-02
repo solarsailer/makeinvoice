@@ -24,7 +24,7 @@ func Format(table [][]string) string {
 		result += formatRow(row)
 
 		if i == 0 {
-			result += formatHeader(len(row))
+			result += formatHeader(row)
 		}
 	}
 
@@ -32,20 +32,21 @@ func Format(table [][]string) string {
 }
 
 // Format the header line of a markdown table.
-// For each col, put a "-" and separate each col with a "|".
+// For each col, put an equal number of "-" as the col length
+// and separate each col with a "|".
 //
 // Example:
 //
-//   ["a", "b"] => "-|-\n"
-func formatHeader(length int) string {
+//   ["aaa", "bb"] => "---|--\n"
+func formatHeader(row []string) string {
 	result := "\n"
 
-	for i := 0; i < length; i++ {
+	for i, col := range row {
 		if i != 0 {
 			result += "|"
 		}
 
-		result += "-"
+		result += strings.Repeat("-", len(col))
 	}
 
 	return result
