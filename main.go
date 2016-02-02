@@ -4,24 +4,22 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strings"
-	"text/template"
 
 	"github.com/codegangsta/cli"
 	"github.com/fatih/color"
+	"github.com/solarsailer/makeinvoice/converter"
+	"github.com/solarsailer/makeinvoice/extensions"
 	"github.com/solarsailer/makeinvoice/parser"
 	"github.com/solarsailer/makeinvoice/table"
+	"github.com/solarsailer/makeinvoice/template"
 )
 
 // -------------------------------------------------------
 // Constants & Variables.
 // -------------------------------------------------------
-
-// DefaultTemplate is a bare template to use as fallback.
-const DefaultTemplate = `{{ .Table }}`
 
 const (
 	outputFlag   = "output"
@@ -49,14 +47,7 @@ func main() {
 	app.Version = "1.0.0"
 
 	// Set main action.
-	app.Action = func(c *cli.Context) {
-
-		// Wrap the call and exit with error if needed.
-		if err := run(c); err != nil {
-			fmt.Fprintln(os.Stderr, color.RedString(err.Error()))
-			os.Exit(1)
-		}
-	}
+	app.Action = wrap
 
 	// Set flags.
 	app.Flags = []cli.Flag{
@@ -70,11 +61,19 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  templateFlag + ", t",
-			Usage: "template file (in markdown)",
+			Usage: "template file (Markdown or HTML)",
 		},
 	}
 
 	app.Run(os.Args)
+}
+
+// Wrap the call and exit with error if needed.
+func wrap(c *cli.Context) {
+	if err := run(c); err != nil {
+		fmt.Fprintln(os.Stderr, color.RedString(err.Error()))
+		os.Exit(1)
+	}
 }
 
 func run(c *cli.Context) error {
@@ -82,124 +81,61 @@ func run(c *cli.Context) error {
 		return errors.New("no arguments passed")
 	}
 
-	return execute(c, c.Args().First())
+	return process(c, c.Args().First())
 }
 
-// -------------------------------------------------------
-// Execute.
-// -------------------------------------------------------
-
-func execute(c *cli.Context, csvFilename string) error {
-	data, err := parser.ParseCSV(csvFilename)
+func process(c *cli.Context, csvInput string) error {
+	data, err := parser.ParseCSV(csvInput)
 	if err != nil {
 		return err
 	}
 
-	template, err := parseTemplate(c)
+	// Get the template filename from the flags.
+	templateFilename := ""
+	if c.GlobalIsSet(templateFlag) {
+		templateFilename = c.GlobalString(templateFlag)
+	}
+
+	template, err := template.Parse(templateFilename)
 	if err != nil {
 		return err
+	}
+
+	// Format the data as a byte slice.
+	content := table.Format(data)
+	isMarkdown := filepath.Ext(templateFilename) == extensions.HTML
+
+	// If the template is an HTML file, convert the data into HTML
+	// before passing it to the template.
+	if isMarkdown {
+		html := converter.ConvertMarkdownToHTML([]byte(content))
+		content = strings.TrimSpace(string(html))
 	}
 
 	// Create a buffer and execute the template with it.
-	buffer := bytes.NewBuffer([]byte{})
-	template.Execute(buffer, Output{Table: table.Format(data)})
+	buffer := new(bytes.Buffer)
+	template.Execute(buffer, Output{Table: content})
 
 	// Export to markdown or pdf (depends on the extension).
-	// Show on the stdout if no export.
 	if c.GlobalIsSet(outputFlag) {
-		path := c.GlobalString(outputFlag)
-
-		if strings.Contains(path, ".pdf") {
-			return createPDF(buffer, path, c.GlobalString(styleFlag))
-		}
-
-		return createMarkdown(buffer, path)
+		return export(isMarkdown, buffer.Bytes(), c.GlobalString(outputFlag))
 	}
 
-	fmt.Println(buffer)
+	// No output? Just print on the stdout.
+	fmt.Print(buffer)
 
 	return nil
 }
 
-func createPDF(buffer *bytes.Buffer, path string, cssPath string) error {
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "temp")
-	if err != nil {
-		return errors.New("cannot export to PDF")
-	}
-	defer os.Remove(tmpFile.Name())
-
-	// Write the markdown to the temp file.
-	writeMarkdownFile(buffer, tmpFile)
-
-	// Construct the arguments.
-	args := []string{}
-
-	// Parse html tags in the markdown file.
-	args = append(args, "-m", `{"html": true}`)
-
-	// Style if CSS file provided.
-	if cssPath != "" {
-		args = append(args, "-s", cssPath)
+func export(fromMarkdown bool, data []byte, path string) error {
+	if filepath.Ext(path) == extensions.PDF {
+		// TODO css c.GlobalString(styleFlag)
+		return converter.ExportPDF(fromMarkdown, data, path)
 	}
 
-	// Output to given path with the tmp file content.
-	args = append(args, "-o", path)
-	args = append(args, tmpFile.Name())
-
-	if err := exec.Command("markdown-pdf", args...).Run(); err != nil {
-		return errors.New("cannot generate the PDF")
+	if filepath.Ext(path) == extensions.HTML {
+		return converter.ExportHTML(fromMarkdown, data, path)
 	}
 
-	return nil
-}
-
-func createMarkdown(buffer *bytes.Buffer, path string) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return errors.New("cannot create a file to " + path)
-	}
-	defer file.Close()
-
-	writeMarkdownFile(buffer, file)
-
-	return nil
-}
-
-func writeMarkdownFile(buffer *bytes.Buffer, file *os.File) error {
-	_, err := file.WriteString(buffer.String())
-	if err != nil {
-		return errors.New("cannot write to the output path")
-	}
-
-	return nil
-}
-
-// -------------------------------------------------------
-// Template.
-// -------------------------------------------------------
-
-func parseTemplate(c *cli.Context) (*template.Template, error) {
-	// Get the template path form the global option `template`.
-	if !c.GlobalIsSet(templateFlag) {
-		// If not available, use the default template.
-		return useDefaultTemplate(), nil
-	}
-
-	content, err := ioutil.ReadFile(c.GlobalString(templateFlag))
-	if err != nil {
-		return nil, errors.New("cannot read the template")
-	}
-
-	template, err := template.New("").Parse(string(content))
-	if err != nil {
-		return nil, errors.New("invalid template file")
-	}
-
-	return template, nil
-}
-
-func useDefaultTemplate() *template.Template {
-	return template.Must(
-		template.New("").Parse(DefaultTemplate),
-	)
+	return converter.ExportMarkdown(data, path)
 }
