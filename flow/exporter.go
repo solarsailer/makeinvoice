@@ -1,11 +1,14 @@
 package flow
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"text/template"
 
 	"github.com/solarsailer/makeinvoice/common/extensions"
 )
@@ -19,47 +22,66 @@ const (
 // -------------------------------------------------------
 
 // Export the data to path.
-func Export(data []byte, path string) error {
-	if filepath.Ext(path) == extensions.PDF {
-		// TODO: Add "--user-style-sheet path/to/css" to wkhtmltopdf command.
-		return ExportPDF(data, path)
+func Export(template *template.Template, data map[string]string, path string) error {
+	buffer := new(bytes.Buffer)
+
+	// No output? Just print on the stdout.
+	if path == "" {
+		template.Execute(buffer, data)
+		return ExportStdout(buffer)
 	}
 
-	if filepath.Ext(path) == extensions.HTML {
-		return ExportHTML(data, path)
+	// We check the extension to know if we need to conver the markdown.
+	ext := filepath.Ext(path)
+
+	if ext == extensions.HTML || ext == extensions.PDF {
+		// Export to PDF or HTML: we need to convert the markdown to HTML.
+		template.Execute(buffer, ConvertAllMarkdownToHTML(data))
+
+		if ext == extensions.PDF {
+			// TODO: Add "--user-style-sheet path/to/css" to wkhtmltopdf command.
+			return ExportPDF(buffer, path)
+		}
+
+		if ext == extensions.HTML {
+			return ExportHTML(buffer, path)
+		}
 	}
 
-	return ExportMarkdown(data, path)
+	// Export to markdown: the data is already ready.
+	template.Execute(buffer, data)
+	return ExportMarkdown(buffer, path)
+}
+
+// ExportStdout redirects its output to the stdout.
+func ExportStdout(buffer *bytes.Buffer) error {
+	fmt.Print(buffer.String())
+	return nil
 }
 
 // ExportMarkdown creates a Markdown file.
-func ExportMarkdown(data []byte, filename string) error {
+func ExportMarkdown(buffer *bytes.Buffer, filename string) error {
 	filename = extensions.Force(filename, extensions.Markdown)
-
-	return createTextFile(data, filename)
+	return createTextFile(buffer, filename)
 }
 
 // ExportHTML creates an HTML file for a given markdown data.
-func ExportHTML(data []byte, filename string) error {
-	data = ConvertMarkdownToHTML(data)
+func ExportHTML(buffer *bytes.Buffer, filename string) error {
 	filename = extensions.Force(filename, extensions.HTML)
-
-	return createTextFile(data, filename)
+	return createTextFile(buffer, filename)
 }
 
 // ExportPDF creates a PDF file for a given markdown data.
-func ExportPDF(data []byte, filename string) error {
-	data = ConvertMarkdownToHTML(data)
+func ExportPDF(buffer *bytes.Buffer, filename string) error {
 	filename = extensions.Force(filename, extensions.PDF)
-
-	return createPDF(data, filename)
+	return createPDF(buffer, filename)
 }
 
 // -------------------------------------------------------
 // Private.
 // -------------------------------------------------------
 
-func createTextFile(data []byte, filename string) error {
+func createTextFile(buffer *bytes.Buffer, filename string) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		return errors.New("cannot create " + filename)
@@ -67,7 +89,7 @@ func createTextFile(data []byte, filename string) error {
 	defer f.Close()
 
 	// Write data to the file.
-	_, err = f.Write(data)
+	_, err = f.Write(buffer.Bytes())
 	if err != nil {
 		return errors.New("cannot write data to " + filename)
 	}
@@ -75,7 +97,7 @@ func createTextFile(data []byte, filename string) error {
 	return nil
 }
 
-func createPDF(html HTML, filename string) error {
+func createPDF(buffer *bytes.Buffer, filename string) error {
 
 	// Create a tmp file.
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "mkinv_")
@@ -85,7 +107,7 @@ func createPDF(html HTML, filename string) error {
 	defer os.Remove(tmpFile.Name())
 
 	// Fill the temp file.
-	_, err = tmpFile.Write(html)
+	_, err = tmpFile.Write(buffer.Bytes())
 	if err != nil {
 		return errors.New("cannot write data to a temporary file")
 	}

@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
 
 	"github.com/solarsailer/makeinvoice/flow"
 	"github.com/solarsailer/makeinvoice/parser"
@@ -66,18 +64,9 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Create a buffer and execute the template with it.
-	buffer := new(bytes.Buffer)
-	template.Execute(buffer, data)
-
-	// Export to markdown, HTML or pdf (it depends on the extension).
-	outputPath := cmd.Flag(outputFlag).Value.String()
-	if outputPath != "" {
-		return flow.Export(buffer.Bytes(), outputPath)
-	}
-
-	// No output? Just print on the stdout.
-	fmt.Print(buffer)
-
-	return nil
+	return flow.Export(
+		template,
+		data,
+		cmd.Flag(outputFlag).Value.String(),
+	)
 }
