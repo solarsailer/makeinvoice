@@ -14,9 +14,10 @@ import (
 // -------------------------------------------------------
 
 const (
-	outputFlag   = "output"
-	cssFlag      = "css"
-	templateFlag = "template"
+	outputFlag    = "output"
+	cssFlag       = "css"
+	templateFlag  = "template"
+	separatorFlag = "separator"
 )
 
 // -------------------------------------------------------
@@ -42,6 +43,7 @@ func init() {
 	Root.Flags().StringP(outputFlag, "o", "", "export to Markdown, HTML or PDF")
 	Root.Flags().StringP(cssFlag, "c", "", "decorate the output with a CSS file (only for PDF)")
 	Root.Flags().StringP(templateFlag, "t", "", "template file (Text, Markdown or HTML)")
+	Root.Flags().StringP(separatorFlag, "s", ",", "specify the separator used by the CSV files")
 }
 
 // -------------------------------------------------------
@@ -54,7 +56,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse the provided CSV files.
-	data, err := parser.ParseCSVFiles(args)
+	data, err := parser.ParseCSVFiles(args, cmd.Flag(separatorFlag).Value.String())
 	if err != nil {
 		return err
 	}

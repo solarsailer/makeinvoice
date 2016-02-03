@@ -11,19 +11,24 @@ import (
 	"github.com/solarsailer/makeinvoice/table"
 )
 
+const defaultSeparator = ','
+
 // -------------------------------------------------------
 // CSV.
 // -------------------------------------------------------
 
 // parseRawCSV returns a 2-dimensional string array from a CSV file.
-func parseRawCSV(filename string) ([][]string, error) {
+func parseRawCSV(filename string, separator string) ([][]string, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, errors.New("cannot open `" + filename + "`: no such file")
 	}
 	defer f.Close()
 
-	records, err := csv.NewReader(f).ReadAll()
+	reader := csv.NewReader(f)
+	reader.Comma = convertSeparator(separator)
+
+	records, err := reader.ReadAll()
 	if err != nil {
 		return nil, errors.New("cannot read `" + filename + "`: invalid CSV file")
 	}
@@ -33,7 +38,7 @@ func parseRawCSV(filename string) ([][]string, error) {
 
 // ParseCSVFiles parse a list of files and turn them into a simple
 // markdown table. Reference the table with the filename.
-func ParseCSVFiles(files []string) (map[string]string, error) {
+func ParseCSVFiles(files []string, separator string) (map[string]string, error) {
 	if len(files) == 0 {
 		return nil, errors.New("no file to parse")
 	}
@@ -41,7 +46,7 @@ func ParseCSVFiles(files []string) (map[string]string, error) {
 	data := map[string]string{}
 
 	for _, filename := range files {
-		fileData, err := parseRawCSV(filename)
+		fileData, err := parseRawCSV(filename, separator)
 		if err != nil {
 			return nil, err
 		}
@@ -50,6 +55,19 @@ func ParseCSVFiles(files []string) (map[string]string, error) {
 	}
 
 	return data, nil
+}
+
+// -------------------------------------------------------
+// Utils.
+// -------------------------------------------------------
+
+func convertSeparator(separator string) rune {
+	runes := []rune(separator)
+	if len(runes) == 0 {
+		return defaultSeparator
+	}
+
+	return runes[0]
 }
 
 // -------------------------------------------------------
