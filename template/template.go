@@ -6,6 +6,11 @@ import (
 	"text/template"
 )
 
+const defaultTemplate = `{{ range . }}
+{{ . }}
+{{ end }}
+`
+
 // -------------------------------------------------------
 // Parser.
 // -------------------------------------------------------
@@ -37,6 +42,6 @@ func useTextTemplate(content string) (*template.Template, error) {
 
 func useDefaultTemplate() *template.Template {
 	return template.Must(
-		template.New("").Parse(`{{ .Table }}`),
+		template.New("").Parse(defaultTemplate),
 	)
 }

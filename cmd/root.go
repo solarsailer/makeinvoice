@@ -4,13 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"github.com/solarsailer/makeinvoice/converter"
-	"github.com/solarsailer/makeinvoice/extensions"
 	"github.com/solarsailer/makeinvoice/parser"
-	"github.com/solarsailer/makeinvoice/table"
 	"github.com/solarsailer/makeinvoice/template"
 	"github.com/spf13/cobra"
 )
@@ -57,8 +53,8 @@ func run(cmd *cobra.Command, args []string) error {
 		return errors.New("no arguments passed")
 	}
 
-	// Parse the provided CSV file.
-	data, err := parser.ParseCSV(args[0])
+	// Parse the provided CSV files.
+	data, err := parser.ParseCSVFiles(args)
 	if err != nil {
 		return err
 	}
@@ -70,42 +66,18 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Format the data as a byte slice.
-	content := table.Format(data)
-	isMarkdown := filepath.Ext(templateFilename) == extensions.HTML
-
-	// If the template is an HTML file, convert the data into HTML
-	// before passing it to the template.
-	if isMarkdown {
-		html := converter.ConvertMarkdownToHTML([]byte(content))
-		content = strings.TrimSpace(string(html))
-	}
-
 	// Create a buffer and execute the template with it.
 	buffer := new(bytes.Buffer)
-	template.Execute(buffer, struct{ Table string }{Table: content})
+	template.Execute(buffer, data)
 
-	// Export to markdown or pdf (depends on the extension).
+	// Export to markdown, HTML or pdf (it depends on the extension).
 	outputPath := cmd.Flag(outputFlag).Value.String()
 	if outputPath != "" {
-		return export(isMarkdown, buffer.Bytes(), outputPath)
+		return converter.Export(buffer.Bytes(), outputPath)
 	}
 
 	// No output? Just print on the stdout.
 	fmt.Print(buffer)
 
 	return nil
-}
-
-func export(fromMarkdown bool, data []byte, path string) error {
-	if filepath.Ext(path) == extensions.PDF {
-		// TODO: Add "--user-style-sheet path/to/css" to wkhtmltopdf command.
-		return converter.ExportPDF(fromMarkdown, data, path)
-	}
-
-	if filepath.Ext(path) == extensions.HTML {
-		return converter.ExportHTML(fromMarkdown, data, path)
-	}
-
-	return converter.ExportMarkdown(data, path)
 }

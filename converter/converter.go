@@ -22,6 +22,24 @@ type Markdown []byte
 type HTML []byte
 
 // -------------------------------------------------------
+// Export.
+// -------------------------------------------------------
+
+// Export the data to path.
+func Export(data []byte, path string) error {
+	if filepath.Ext(path) == extensions.PDF {
+		// TODO: Add "--user-style-sheet path/to/css" to wkhtmltopdf command.
+		return ExportPDF(data, path)
+	}
+
+	if filepath.Ext(path) == extensions.HTML {
+		return ExportHTML(data, path)
+	}
+
+	return ExportMarkdown(data, path)
+}
+
+// -------------------------------------------------------
 // Conversion.
 // -------------------------------------------------------
 
@@ -42,12 +60,9 @@ func ExportMarkdown(data []byte, filename string) error {
 }
 
 // ExportHTML creates an HTML file for a given markdown data.
-func ExportHTML(fromMarkdown bool, data []byte, filename string) error {
+func ExportHTML(data []byte, filename string) error {
+	data = ConvertMarkdownToHTML(data)
 	filename = appendExtension(filename, extensions.HTML)
-
-	if fromMarkdown {
-		data = ConvertMarkdownToHTML(data)
-	}
 
 	return exportFile(data, filename)
 }
@@ -73,12 +88,9 @@ func exportFile(data []byte, filename string) error {
 // -------------------------------------------------------
 
 // ExportPDF creates a PDF file for a given markdown data.
-func ExportPDF(fromMarkdown bool, data []byte, filename string) error {
+func ExportPDF(data []byte, filename string) error {
+	data = ConvertMarkdownToHTML(data)
 	filename = appendExtension(filename, extensions.PDF)
-
-	if fromMarkdown {
-		data = ConvertMarkdownToHTML(data)
-	}
 
 	return createPDF(data, filename)
 }
