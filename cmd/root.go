@@ -99,7 +99,7 @@ func run(cmd *cobra.Command, args []string) error {
 
 func export(fromMarkdown bool, data []byte, path string) error {
 	if filepath.Ext(path) == extensions.PDF {
-		// TODO css cmd.Flag(styleFlag)
+		// TODO: Add "--user-style-sheet path/to/css" to wkhtmltopdf command.
 		return converter.ExportPDF(fromMarkdown, data, path)
 	}
 
