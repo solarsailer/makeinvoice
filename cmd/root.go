@@ -15,7 +15,7 @@ import (
 
 const (
 	outputFlag   = "output"
-	styleFlag    = "style"
+	cssFlag      = "css"
 	templateFlag = "template"
 )
 
@@ -40,7 +40,7 @@ var Root = &cobra.Command{
 
 func init() {
 	Root.Flags().StringP(outputFlag, "o", "", "export to Markdown, HTML or PDF")
-	Root.Flags().StringP(styleFlag, "s", "", "decorate the output (only for PDF)")
+	Root.Flags().StringP(cssFlag, "c", "", "decorate the output with a CSS file (only for PDF)")
 	Root.Flags().StringP(templateFlag, "t", "", "template file (Text, Markdown or HTML)")
 }
 
@@ -70,6 +70,6 @@ func run(cmd *cobra.Command, args []string) error {
 		template,
 		data,
 		cmd.Flag(outputFlag).Value.String(),
-		cmd.Flag(styleFlag).Value.String(),
+		cmd.Flag(cssFlag).Value.String(),
 	)
 }
