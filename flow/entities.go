@@ -1,4 +1,4 @@
-package entities
+package flow
 
 // Markdown is a byte slice.
 type Markdown []byte

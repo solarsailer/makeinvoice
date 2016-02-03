@@ -1,4 +1,4 @@
-package converter
+package flow
 
 import (
 	"errors"
@@ -7,8 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/russross/blackfriday"
-	"github.com/solarsailer/makeinvoice/common/entities"
 	"github.com/solarsailer/makeinvoice/common/extensions"
 )
 
@@ -17,7 +15,7 @@ const (
 )
 
 // -------------------------------------------------------
-// Export.
+// Public.
 // -------------------------------------------------------
 
 // Export the data to path.
@@ -34,35 +32,34 @@ func Export(data []byte, path string) error {
 	return ExportMarkdown(data, path)
 }
 
-// -------------------------------------------------------
-// Conversion.
-// -------------------------------------------------------
-
-// ConvertMarkdownToHTML returns an HTML for a given markdown.
-func ConvertMarkdownToHTML(markdown entities.Markdown) entities.HTML {
-	return blackfriday.MarkdownCommon(markdown)
-}
-
-// -------------------------------------------------------
-// Markdown & HTML.
-// -------------------------------------------------------
-
 // ExportMarkdown creates a Markdown file.
 func ExportMarkdown(data []byte, filename string) error {
-	filename = appendExtension(filename, extensions.Markdown)
+	filename = extensions.Force(filename, extensions.Markdown)
 
-	return exportFile(data, filename)
+	return createTextFile(data, filename)
 }
 
 // ExportHTML creates an HTML file for a given markdown data.
 func ExportHTML(data []byte, filename string) error {
 	data = ConvertMarkdownToHTML(data)
-	filename = appendExtension(filename, extensions.HTML)
+	filename = extensions.Force(filename, extensions.HTML)
 
-	return exportFile(data, filename)
+	return createTextFile(data, filename)
 }
 
-func exportFile(data []byte, filename string) error {
+// ExportPDF creates a PDF file for a given markdown data.
+func ExportPDF(data []byte, filename string) error {
+	data = ConvertMarkdownToHTML(data)
+	filename = extensions.Force(filename, extensions.PDF)
+
+	return createPDF(data, filename)
+}
+
+// -------------------------------------------------------
+// Private.
+// -------------------------------------------------------
+
+func createTextFile(data []byte, filename string) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		return errors.New("cannot create " + filename)
@@ -78,19 +75,7 @@ func exportFile(data []byte, filename string) error {
 	return nil
 }
 
-// -------------------------------------------------------
-// PDF.
-// -------------------------------------------------------
-
-// ExportPDF creates a PDF file for a given markdown data.
-func ExportPDF(data []byte, filename string) error {
-	data = ConvertMarkdownToHTML(data)
-	filename = appendExtension(filename, extensions.PDF)
-
-	return createPDF(data, filename)
-}
-
-func createPDF(html entities.HTML, filename string) error {
+func createPDF(html HTML, filename string) error {
 
 	// Create a tmp file.
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "mkinv_")
@@ -120,19 +105,4 @@ func createPDF(html entities.HTML, filename string) error {
 	}
 
 	return exec.Command(pdfConverter, htmlPath, filename).Run()
-}
-
-// -------------------------------------------------------
-// Utils.
-// -------------------------------------------------------
-
-// Add the extension if there's none or if it's incorrect.
-func appendExtension(filename, appendExtension string) string {
-	ext := filepath.Ext(filename)
-
-	if ext == "" || ext != appendExtension {
-		return filename + appendExtension
-	}
-
-	return filename
 }

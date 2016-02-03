@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/solarsailer/makeinvoice/converter"
+	"github.com/solarsailer/makeinvoice/flow"
 	"github.com/solarsailer/makeinvoice/parser"
 	"github.com/solarsailer/makeinvoice/template"
 	"github.com/spf13/cobra"
@@ -73,7 +73,7 @@ func run(cmd *cobra.Command, args []string) error {
 	// Export to markdown, HTML or pdf (it depends on the extension).
 	outputPath := cmd.Flag(outputFlag).Value.String()
 	if outputPath != "" {
-		return converter.Export(buffer.Bytes(), outputPath)
+		return flow.Export(buffer.Bytes(), outputPath)
 	}
 
 	// No output? Just print on the stdout.

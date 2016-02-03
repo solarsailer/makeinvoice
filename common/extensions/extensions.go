@@ -1,5 +1,7 @@
 package extensions
 
+import "path/filepath"
+
 const (
 	// Markdown extension.
 	Markdown = ".md"
@@ -10,3 +12,18 @@ const (
 	// PDF extension.
 	PDF = ".pdf"
 )
+
+// -------------------------------------------------------
+// Functions.
+// -------------------------------------------------------
+
+// Force appends the extension if there's none or if it's incorrect.
+func Force(filename, forceExtension string) string {
+	ext := filepath.Ext(filename)
+
+	if ext == "" || ext != forceExtension {
+		return filename + forceExtension
+	}
+
+	return filename
+}
