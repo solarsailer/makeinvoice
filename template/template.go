@@ -6,10 +6,7 @@ import (
 	"text/template"
 )
 
-const defaultTemplate = `{{ range . }}
-{{ . }}
-{{ end }}
-`
+const defaultTemplate = "{{ range . }}{{ . }}\n\n{{ end }}"
 
 // -------------------------------------------------------
 // Parser.
