@@ -53,10 +53,12 @@ func formatHeader(row []string) string {
 }
 
 // Format a row - separate each value by a "|".
+// If a line is empty (see #isEmptyLine), ignore it.
 //
 // Example:
 //
 //   ["a", "b"] => "a|b\n"
+//   ["", ""]   => ""
 func formatRow(row []string) string {
 	// Pass the line if empty.
 	if isEmptyLine(row) {
@@ -77,6 +79,13 @@ func formatRow(row []string) string {
 	return result
 }
 
+// Indicate if a line is empty, ie, if every field is a blank string.
+//
+// Example:
+//
+//   ["a", ""]  => false
+//   ["", ""]   => true
+//   ["a", "b"] => false
 func isEmptyLine(row []string) bool {
 	for _, col := range row {
 		if strings.TrimSpace(col) != "" {
