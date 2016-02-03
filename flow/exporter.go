@@ -22,7 +22,7 @@ const (
 // -------------------------------------------------------
 
 // Export the data to path.
-func Export(template *template.Template, data map[string]string, path string) error {
+func Export(template *template.Template, data map[string]string, path string, cssPath string) error {
 	buffer := new(bytes.Buffer)
 
 	// No output? Just print on the stdout.
@@ -40,7 +40,7 @@ func Export(template *template.Template, data map[string]string, path string) er
 
 		if ext == extensions.PDF {
 			// TODO: Add "--user-style-sheet path/to/css" to wkhtmltopdf command.
-			return ExportPDF(buffer, path)
+			return ExportPDF(buffer, path, cssPath)
 		}
 
 		if ext == extensions.HTML {
@@ -72,9 +72,9 @@ func ExportHTML(buffer *bytes.Buffer, filename string) error {
 }
 
 // ExportPDF creates a PDF file for a given markdown data.
-func ExportPDF(buffer *bytes.Buffer, filename string) error {
+func ExportPDF(buffer *bytes.Buffer, filename string, cssPath string) error {
 	filename = extensions.Force(filename, extensions.PDF)
-	return createPDF(buffer, filename)
+	return createPDF(buffer, filename, cssPath)
 }
 
 // -------------------------------------------------------
@@ -97,7 +97,7 @@ func createTextFile(buffer *bytes.Buffer, filename string) error {
 	return nil
 }
 
-func createPDF(buffer *bytes.Buffer, filename string) error {
+func createPDF(buffer *bytes.Buffer, filename string, cssPath string) error {
 
 	// Create a tmp file.
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "mkinv_")
@@ -126,5 +126,43 @@ func createPDF(buffer *bytes.Buffer, filename string) error {
 		return errors.New("impossible to call `" + pdfConverter + "`: install it and run this command again")
 	}
 
-	return exec.Command(pdfConverter, htmlPath, filename).Run()
+	// Check if the provided CSS file is valid.
+	if err := testCSSFile(cssPath); err != nil {
+		return err
+	}
+
+	// Construct command.
+	cmd := []string{}
+
+	if cssPath != "" {
+		cmd = append(cmd, "--user-style-sheet")
+		cmd = append(cmd, cssPath)
+	}
+
+	cmd = append(cmd, htmlPath)
+	cmd = append(cmd, filename)
+
+	return exec.Command(pdfConverter, cmd...).Run()
+}
+
+// -------------------------------------------------------
+// Utils.
+// -------------------------------------------------------
+
+func testCSSFile(path string) error {
+	// If the path is empty, that means that the user didn't specify a style file.
+	// Nothing to do.
+	if path == "" {
+		return nil
+	}
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return errors.New("file `" + path + "` does not exist")
+	}
+
+	if filepath.Ext(path) != extensions.CSS {
+		return errors.New("file `" + path + "` is not a CSS file")
+	}
+
+	return nil
 }

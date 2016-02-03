@@ -11,6 +11,9 @@ const (
 
 	// PDF extension.
 	PDF = ".pdf"
+
+	// CSS extension.
+	CSS = ".css"
 )
 
 // -------------------------------------------------------

@@ -70,5 +70,6 @@ func run(cmd *cobra.Command, args []string) error {
 		template,
 		data,
 		cmd.Flag(outputFlag).Value.String(),
+		cmd.Flag(styleFlag).Value.String(),
 	)
 }
