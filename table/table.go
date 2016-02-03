@@ -58,6 +58,12 @@ func formatHeader(row []string) string {
 //
 //   ["a", "b"] => "a|b\n"
 func formatRow(row []string) string {
+	// Pass the line if empty.
+	if isEmptyLine(row) {
+		return ""
+	}
+
+	// Otherwise, create the line col by col.
 	result := "\n"
 
 	for i, col := range row {
@@ -69,4 +75,14 @@ func formatRow(row []string) string {
 	}
 
 	return result
+}
+
+func isEmptyLine(row []string) bool {
+	for _, col := range row {
+		if strings.TrimSpace(col) != "" {
+			return false
+		}
+	}
+
+	return true
 }
