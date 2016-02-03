@@ -25,11 +25,13 @@ const (
 
 // RootCmd is the main entry point of the application.
 var Root = &cobra.Command{
-	Use:     "makeinvoice",
-	Short:   "Create an invoice populated with data from a CSV file.",
-	Long:    `Create an invoice populated with data from a (or multiple) CSV file(s).`,
-	Example: `  makeinvoice --output invoice42.pdf data.csv`,
-	RunE:    run,
+	Use:   "makeinvoice",
+	Short: "Create an invoice populated with data from a CSV file.",
+	Long:  `Create an invoice populated with data from a (or multiple) CSV file(s).`,
+	Example: `  makeinvoice data.csv
+  makeinvoice --output invoice.pdf data.csv
+  makeinvoice --output invoice.html --template tpl.html data01.csv data02.csv`,
+	RunE: run,
 }
 
 // -------------------------------------------------------
@@ -39,7 +41,7 @@ var Root = &cobra.Command{
 func init() {
 	Root.Flags().StringP(outputFlag, "o", "", "export to Markdown, HTML or PDF")
 	Root.Flags().StringP(styleFlag, "s", "", "decorate the output (only for PDF)")
-	Root.Flags().StringP(templateFlag, "t", "", "template file (Markdown or HTML)")
+	Root.Flags().StringP(templateFlag, "t", "", "template file (Text, Markdown or HTML)")
 }
 
 // -------------------------------------------------------
