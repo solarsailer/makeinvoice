@@ -80,6 +80,5 @@ func toUpperFirst(filename string) string {
 // removeExtension deletes the extension of a filename.
 func removeExtension(filename string) string {
 	ext := filepath.Ext(filename)
-
-	return strings.TrimRight(filename, ext)
+	return strings.Replace(filename, ext, "", 1)
 }
