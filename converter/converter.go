@@ -8,18 +8,13 @@ import (
 	"path/filepath"
 
 	"github.com/russross/blackfriday"
-	"github.com/solarsailer/makeinvoice/extensions"
+	"github.com/solarsailer/makeinvoice/common/entities"
+	"github.com/solarsailer/makeinvoice/common/extensions"
 )
 
 const (
 	pdfConverter = "wkhtmltopdf"
 )
-
-// Markdown is a byte slice.
-type Markdown []byte
-
-// HTML is a byte slice.
-type HTML []byte
 
 // -------------------------------------------------------
 // Export.
@@ -44,7 +39,7 @@ func Export(data []byte, path string) error {
 // -------------------------------------------------------
 
 // ConvertMarkdownToHTML returns an HTML for a given markdown.
-func ConvertMarkdownToHTML(markdown Markdown) HTML {
+func ConvertMarkdownToHTML(markdown entities.Markdown) entities.HTML {
 	return blackfriday.MarkdownCommon(markdown)
 }
 
@@ -95,7 +90,7 @@ func ExportPDF(data []byte, filename string) error {
 	return createPDF(data, filename)
 }
 
-func createPDF(html HTML, filename string) error {
+func createPDF(html entities.HTML, filename string) error {
 
 	// Create a tmp file.
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "mkinv_")
